@@ -511,6 +511,29 @@ function app() {
       return data;
     },
 
+    // ── validações locais ──
+    _validarNome(v) {
+      if (!v || v.length < 5 || v.length > 30) return 'Nome deve ter entre 5 e 30 caracteres';
+      if (v !== v.trim()) return 'Nome não pode ter espaços no início ou no fim';
+      if (v[0] !== v[0].toUpperCase() || !/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(v[0])) return 'Nome deve começar com letra maiúscula';
+      if (v.includes('  ')) return 'Nome não pode ter espaços duplos';
+      if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s'\-]+$/.test(v)) return "Nome pode conter apenas letras, espaços e hífens";
+      return null;
+    },
+
+    _validarEmail(v) {
+      const partes = v.split('@');
+      if (partes.length !== 2) return "Email deve conter exatamente um '@'";
+      const [local, dominio] = partes;
+      if (local.length < 2 || local.length > 10) return 'Parte local do email deve ter entre 2 e 10 caracteres';
+      if (dominio.length < 2 || dominio.length > 20) return 'Domínio do email deve ter entre 2 e 20 caracteres';
+      if (local.startsWith('.') || local.endsWith('.') || dominio.startsWith('.') || dominio.endsWith('.'))
+        return 'Email não pode começar ou terminar com ponto em nenhuma das partes';
+      if ([local, dominio].some(p => !/^[A-Za-z.]+$/.test(p))) return 'Email pode conter apenas letras e pontos';
+      if ([local, dominio].some(p => p.includes('..'))) return 'Email não pode ter pontos consecutivos';
+      return null;
+    },
+
     // ── auth ──
     async login() {
       try {
@@ -523,6 +546,10 @@ function app() {
     },
 
     async cadastrar() {
+      const erroNome = this._validarNome(this.form.nome);
+      if (erroNome) { this.showToast(erroNome, 'err'); return; }
+      const erroEmail = this._validarEmail(this.form.email);
+      if (erroEmail) { this.showToast(erroEmail, 'err'); return; }
       try {
         await this.api('POST', '/auth/cadastrar', { email: this.form.email, nome: this.form.nome, senha: this.form.senha });
         this.authTab = 'login';
@@ -552,7 +579,11 @@ function app() {
 
     async salvarPerfil() {
       const payload = {};
-      if (this.fPerfil.nome && this.fPerfil.nome !== this.session.nome) payload.nome = this.fPerfil.nome;
+      if (this.fPerfil.nome && this.fPerfil.nome !== this.session.nome) {
+        const erroNome = this._validarNome(this.fPerfil.nome);
+        if (erroNome) { this.showModalError(erroNome); return; }
+        payload.nome = this.fPerfil.nome;
+      }
       if (this.fPerfil.senha) payload.senha = this.fPerfil.senha;
       if (Object.keys(payload).length === 0) {
         this.showModalError('Nenhuma alteração detectada.');

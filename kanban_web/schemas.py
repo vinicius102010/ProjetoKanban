@@ -54,13 +54,27 @@ def validar_email(v: str) -> str:
         raise ValueError("Parte local do email deve ter entre 2 e 10 caracteres")
     if not (2 <= len(dominio) <= 20):
         raise ValueError("Domínio do email deve ter entre 2 e 20 caracteres")
-    if nome.endswith('.') or dominio.startswith('.'):
-        raise ValueError("Email não pode ter ponto adjacente ao '@'")
+    if nome.startswith('.') or nome.endswith('.') or dominio.startswith('.') or dominio.endswith('.'):
+        raise ValueError("Email não pode começar ou terminar com ponto em nenhuma das partes")
     for parte in (nome, dominio):
         if not all(c.isalpha() or c == '.' for c in parte):
             raise ValueError("Email pode conter apenas letras e pontos (ex: pedro@gmail.com)")
         if '..' in parte:
             raise ValueError("Email não pode ter pontos consecutivos")
+    return v
+
+
+def validar_nome(v: str) -> str:
+    if not (5 <= len(v) <= 30):
+        raise ValueError("Nome deve ter entre 5 e 30 caracteres")
+    if not v[0].isupper():
+        raise ValueError("Nome deve começar com letra maiúscula")
+    if "  " in v:
+        raise ValueError("Nome não pode ter espaços duplos")
+    if v.strip() != v:
+        raise ValueError("Nome não pode ter espaços no início ou no fim")
+    if not all(c.isalpha() or c in (' ', '-', "'") for c in v):
+        raise ValueError("Nome pode conter apenas letras, espaços e hífens")
     return v
 
 
@@ -103,7 +117,7 @@ class ContaCreate(BaseModel):
 
     @field_validator("nome")
     @classmethod
-    def check_nome(cls, v): return validar_texto(v)
+    def check_nome(cls, v): return validar_nome(v)
 
     @field_validator("senha")
     @classmethod
@@ -118,7 +132,7 @@ class ContaUpdate(BaseModel):
     @classmethod
     def check_nome(cls, v):
         if v is not None:
-            return validar_texto(v)
+            return validar_nome(v)
         return v
 
     @field_validator("senha")
