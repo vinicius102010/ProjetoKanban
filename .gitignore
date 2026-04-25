@@ -1,0 +1,17 @@
+# Python virtual environment
+kanban_web/venv/
+kanban_web/.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Build outputs
+bin/
+obj/
+output/
+
+# CodeBlocks
+*.depend
+*.layout
