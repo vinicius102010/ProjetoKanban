@@ -1,7 +1,7 @@
 import re
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum
 
 
@@ -219,6 +219,18 @@ class CartaoCreate(BaseModel):
     @classmethod
     def check_texto(cls, v): return validar_texto(v)
 
+    @field_validator("data_limite")
+    @classmethod
+    def check_data_limite(cls, v):
+        if v is not None:
+            try:
+                d = date.fromisoformat(v)
+            except ValueError:
+                raise ValueError("Data deve estar no formato AAAA-MM-DD")
+            if d < date.today():
+                raise ValueError("A data limite não pode ser anterior ao dia atual")
+        return v
+
 
 class CartaoUpdate(BaseModel):
     nome: str
@@ -230,6 +242,18 @@ class CartaoUpdate(BaseModel):
     @field_validator("nome", "descricao", "responsavel")
     @classmethod
     def check_texto(cls, v): return validar_texto(v)
+
+    @field_validator("data_limite")
+    @classmethod
+    def check_data_limite(cls, v):
+        if v is not None:
+            try:
+                d = date.fromisoformat(v)
+            except ValueError:
+                raise ValueError("Data deve estar no formato AAAA-MM-DD")
+            if d < date.today():
+                raise ValueError("A data limite não pode ser anterior ao dia atual")
+        return v
 
 
 class CartaoMover(BaseModel):

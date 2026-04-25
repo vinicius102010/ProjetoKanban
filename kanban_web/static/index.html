@@ -98,6 +98,7 @@
         <option value="ALTA">Prioridade: Alta</option>
       </select>
       <input x-model="fCartao.data_limite" type="date"
+        :min="new Date().toISOString().split('T')[0]"
         class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
     </div>
 
@@ -739,7 +740,7 @@ function app() {
           prioridade: this.fCartao.prioridade,
           data_limite: this.fCartao.data_limite || null,
         };
-        await this.api('PUT', `/cartoes/${this.fCartao.codigo}`, payload);
+        await this.api('PUT', `/cartoes/${this.fCartao.codigo}?codigo_quadro=${this.quadroAtual.codigo}`, payload);
         this.modal.open = false;
         this.modalError = '';
         await this.carregarCartoes();
@@ -772,7 +773,7 @@ function app() {
         btnLabel: 'Excluir',
         confirm: async () => {
           try {
-            await this.api('DELETE', `/cartoes/${c.codigo}`);
+            await this.api('DELETE', `/cartoes/${c.codigo}?codigo_quadro=${this.quadroAtual.codigo}`);
             this.modal.open = false;
             await this.carregarCartoes();
             await this.carregarMetricas();
@@ -794,7 +795,7 @@ function app() {
       const cartao = this.cartoes.find(c => c.codigo === this.draggingCodigo);
       if (!cartao || cartao.coluna === novaColuna) { this.draggingCodigo = null; return; }
       try {
-        await this.api('PATCH', `/cartoes/${this.draggingCodigo}/mover`, { coluna: novaColuna });
+        await this.api('PATCH', `/cartoes/${this.draggingCodigo}/mover?codigo_quadro=${this.quadroAtual.codigo}`, { coluna: novaColuna });
         await this.carregarCartoes();
         await this.carregarMetricas();
       } catch(e) { this.showToast(e.message, 'err'); }
