@@ -10,6 +10,7 @@ from enum import Enum
 class ColunaEnum(str, Enum):
     A_FAZER = "A FAZER"
     FAZENDO = "FAZENDO"
+    EM_TESTE = "EM TESTE"
     FEITO = "FEITO"
 
 
