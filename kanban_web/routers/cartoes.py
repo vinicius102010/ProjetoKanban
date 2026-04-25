@@ -9,6 +9,26 @@ import schemas
 router = APIRouter(prefix="/cartoes", tags=["Cartões"])
 
 
+def _recalcular_status_quadro(codigo_quadro: str, db: Session):
+    """Atualiza o status do quadro automaticamente com base nas colunas dos seus cartões."""
+    quadro = db.query(models.Quadro).filter(models.Quadro.codigo == codigo_quadro).first()
+    if not quadro:
+        return
+    cartoes = db.query(models.Cartao).filter(models.Cartao.codigo_quadro == codigo_quadro).all()
+    if not cartoes:
+        return
+    colunas = [c.coluna for c in cartoes]
+    if all(col == "FEITO" for col in colunas):
+        quadro.status = "CONCLUIDO"
+    elif all(col in ("FEITO", "EM TESTE") for col in colunas):
+        quadro.status = "EM TESTES"
+    elif all(col == "A FAZER" for col in colunas):
+        quadro.status = "A FAZER"
+    else:
+        quadro.status = "EM ANDAMENTO"
+    db.commit()
+
+
 @router.post("/", response_model=schemas.CartaoOut, status_code=status.HTTP_201_CREATED)
 def criar_cartao(payload: schemas.CartaoCreate, db: Session = Depends(get_db)):
     quadro = db.query(models.Quadro).filter(models.Quadro.codigo == payload.codigo_quadro).first()
@@ -40,6 +60,7 @@ def criar_cartao(payload: schemas.CartaoCreate, db: Session = Depends(get_db)):
     db.add(cartao)
     db.commit()
     db.refresh(cartao)
+    _recalcular_status_quadro(cartao.codigo_quadro, db)
     return cartao
 
 
@@ -85,6 +106,7 @@ def mover_cartao(codigo: str, payload: schemas.CartaoMover, db: Session = Depend
     cartao.coluna = nova_coluna
     db.commit()
     db.refresh(cartao)
+    _recalcular_status_quadro(cartao.codigo_quadro, db)
     return cartao
 
 
@@ -108,8 +130,10 @@ def excluir_cartao(codigo: str, db: Session = Depends(get_db)):
     cartao = db.query(models.Cartao).filter(models.Cartao.codigo == codigo).first()
     if not cartao:
         raise HTTPException(status_code=404, detail="Cartão não encontrado")
+    codigo_quadro = cartao.codigo_quadro
     db.delete(cartao)
     db.commit()
+    _recalcular_status_quadro(codigo_quadro, db)
 
 
 @router.get("/quadro/{codigo_quadro}/metricas", response_model=schemas.MetricasOut)

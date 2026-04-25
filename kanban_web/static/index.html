@@ -376,7 +376,7 @@
     </div>
 
     <!-- Colunas -->
-    <div class="grid grid-cols-3 gap-5">
+    <div class="grid grid-cols-4 gap-5">
       <template x-for="col in colunas" :key="col.id">
         <div class="bg-gray-50 rounded-2xl p-4 kanban-col drop-zone"
           :id="'col-' + col.id"
@@ -448,9 +448,10 @@ function app() {
       { id: 'CONCLUIDO',    label: 'Concluído',    icon: '✅', bg: 'bg-green-50'  },
     ],
     colunas: [
-      { id: 'A FAZER', label: 'A FAZER' },
-      { id: 'FAZENDO', label: 'FAZENDO' },
-      { id: 'FEITO',   label: 'FEITO'   },
+      { id: 'A FAZER',  label: 'A FAZER',  icon: '📋', bg: 'bg-slate-100' },
+      { id: 'FAZENDO',  label: 'FAZENDO',  icon: '⚙️',  bg: 'bg-blue-50'  },
+      { id: 'EM TESTE', label: 'EM TESTE', icon: '🧪', bg: 'bg-yellow-50' },
+      { id: 'FEITO',    label: 'FEITO',    icon: '✅', bg: 'bg-green-50'  },
     ],
     modal: { open: false, type: 'confirm', title: '', msg: '', btnLabel: 'Confirmar', confirm: () => {} },
     modalError: '',
@@ -629,6 +630,7 @@ function app() {
       this.quadroAtual = null;
       this.cartoes = [];
       this.membros = [];
+      this.carregarQuadros();
     },
 
     // ── membros ──
