@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List
 from datetime import datetime, timezone
 from database import get_db
@@ -35,17 +36,12 @@ def criar_cartao(payload: schemas.CartaoCreate, db: Session = Depends(get_db)):
     if not quadro:
         raise HTTPException(status_code=404, detail="Quadro não encontrado")
 
-    # Verificar limite WIP na coluna destino
-    qtd_coluna = db.query(models.Cartao).filter(
+    existente = db.query(models.Cartao).filter(
+        models.Cartao.codigo == payload.codigo,
         models.Cartao.codigo_quadro == payload.codigo_quadro,
-        models.Cartao.coluna == payload.coluna.value
-    ).count()
-    if qtd_coluna >= quadro.limite_wip:
-        raise HTTPException(status_code=409, detail=f"Limite WIP atingido na coluna '{payload.coluna.value}'")
-
-    existente = db.query(models.Cartao).filter(models.Cartao.codigo == payload.codigo).first()
+    ).first()
     if existente:
-        raise HTTPException(status_code=409, detail="Código de cartão já existe")
+        raise HTTPException(status_code=409, detail="Código de cartão já existe neste quadro")
 
     cartao = models.Cartao(
         codigo=payload.codigo,
@@ -58,7 +54,11 @@ def criar_cartao(payload: schemas.CartaoCreate, db: Session = Depends(get_db)):
         coluna=payload.coluna.value,
     )
     db.add(cartao)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Código de cartão já existe")
     db.refresh(cartao)
     _recalcular_status_quadro(cartao.codigo_quadro, db)
     return cartao
@@ -70,20 +70,26 @@ def listar_cartoes(codigo_quadro: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{codigo}", response_model=schemas.CartaoOut)
-def visualizar_cartao(codigo: str, db: Session = Depends(get_db)):
-    cartao = db.query(models.Cartao).filter(models.Cartao.codigo == codigo).first()
+def visualizar_cartao(codigo: str, codigo_quadro: str = Query(...), db: Session = Depends(get_db)):
+    cartao = db.query(models.Cartao).filter(
+        models.Cartao.codigo == codigo,
+        models.Cartao.codigo_quadro == codigo_quadro,
+    ).first()
     if not cartao:
         raise HTTPException(status_code=404, detail="Cartão não encontrado")
     return cartao
 
 
 @router.patch("/{codigo}/mover", response_model=schemas.CartaoOut)
-def mover_cartao(codigo: str, payload: schemas.CartaoMover, db: Session = Depends(get_db)):
-    cartao = db.query(models.Cartao).filter(models.Cartao.codigo == codigo).first()
+def mover_cartao(codigo: str, payload: schemas.CartaoMover, codigo_quadro: str = Query(...), db: Session = Depends(get_db)):
+    cartao = db.query(models.Cartao).filter(
+        models.Cartao.codigo == codigo,
+        models.Cartao.codigo_quadro == codigo_quadro,
+    ).first()
     if not cartao:
         raise HTTPException(status_code=404, detail="Cartão não encontrado")
 
-    quadro = db.query(models.Quadro).filter(models.Quadro.codigo == cartao.codigo_quadro).first()
+    quadro = db.query(models.Quadro).filter(models.Quadro.codigo == codigo_quadro).first()
 
     # Verificar limite WIP na coluna destino (excluindo o próprio cartão)
     qtd_coluna = db.query(models.Cartao).filter(
@@ -111,8 +117,11 @@ def mover_cartao(codigo: str, payload: schemas.CartaoMover, db: Session = Depend
 
 
 @router.put("/{codigo}", response_model=schemas.CartaoOut)
-def editar_cartao(codigo: str, payload: schemas.CartaoUpdate, db: Session = Depends(get_db)):
-    cartao = db.query(models.Cartao).filter(models.Cartao.codigo == codigo).first()
+def editar_cartao(codigo: str, payload: schemas.CartaoUpdate, codigo_quadro: str = Query(...), db: Session = Depends(get_db)):
+    cartao = db.query(models.Cartao).filter(
+        models.Cartao.codigo == codigo,
+        models.Cartao.codigo_quadro == codigo_quadro,
+    ).first()
     if not cartao:
         raise HTTPException(status_code=404, detail="Cartão não encontrado")
     cartao.nome = payload.nome
@@ -126,11 +135,13 @@ def editar_cartao(codigo: str, payload: schemas.CartaoUpdate, db: Session = Depe
 
 
 @router.delete("/{codigo}", status_code=status.HTTP_204_NO_CONTENT)
-def excluir_cartao(codigo: str, db: Session = Depends(get_db)):
-    cartao = db.query(models.Cartao).filter(models.Cartao.codigo == codigo).first()
+def excluir_cartao(codigo: str, codigo_quadro: str = Query(...), db: Session = Depends(get_db)):
+    cartao = db.query(models.Cartao).filter(
+        models.Cartao.codigo == codigo,
+        models.Cartao.codigo_quadro == codigo_quadro,
+    ).first()
     if not cartao:
         raise HTTPException(status_code=404, detail="Cartão não encontrado")
-    codigo_quadro = cartao.codigo_quadro
     db.delete(cartao)
     db.commit()
     _recalcular_status_quadro(codigo_quadro, db)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, UniqueConstraint, PrimaryKeyConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -47,7 +47,7 @@ class QuadroMembro(Base):
 class Cartao(Base):
     __tablename__ = "cartoes"
 
-    codigo = Column(String(4), primary_key=True, index=True)
+    codigo = Column(String(4), nullable=False, index=True)
     codigo_quadro = Column(String(4), ForeignKey("quadros.codigo"), nullable=False)
     nome = Column(String, nullable=False)
     descricao = Column(String, nullable=False)
@@ -60,3 +60,5 @@ class Cartao(Base):
     concluido_em = Column(DateTime, nullable=True)
 
     quadro = relationship("Quadro", back_populates="cartoes")
+
+    __table_args__ = (PrimaryKeyConstraint("codigo", "codigo_quadro"),)
